@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-CAM フォトマネージャー</title>
+
+    <!-- Favicon with cache busting -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+    <link rel="alternate icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDE4MCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxODAiIGhlaWdodD0iMTgwIiByeD0iMjQiIGZpbGw9IiMyMTIxMjEiLz4KY2lyY2xlIGN4PSI5MCIgY3k9IjkwIiByPSI0NSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjBEQUZGIiBzdHJva2Utd2lkdGg9IjgiLz4KY2lyY2xlIGN4PSI5MCIgY3k9IjkwIiByPSIyMiIgZmlsbD0iIzYwREFGRiIvPgo8cmVjdCB4PSIxNSIgeT0iMzAiIHdpZHRoPSIzMCIgaGVpZ2h0PSIyMCIgcng9IjQiIGZpbGw9IiM2MERBRkYiLz4KPHR0ZXh0IHg9IjMwIiB5PSIxNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIzMiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9IiM2MERBRkYiPkNBTTwvdGV4dD4KPC9zdmc+Cg==">
+
+    <!-- Prevent extension interference -->
+    <meta name="robots" content="noindex, nofollow, notranslate">
+    <meta name="google" content="notranslate">
+    <meta name="translate" content="no">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'; object-src 'none';">
+
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <!-- ヘッダーにSD情報統合 -->
+            <div class="header-with-sd">
+                <div class="header-title">
+                    📷 ESP32-CAM Photos
+                </div>
+                <div class="header-sd-row">
+                    <span class="sd-info">
+                        <span id="sdTotal">...</span> | <span id="usagePercent">0%</span>
+                    </span>
+                    <div class="usage-bar">
+                        <div id="usageProgress" class="usage-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 詳細SD情報エリア -->
+            <div id="sdInfo" class="sd-details">
+                <div class="sd-row">
+                    <span class="sd-label">📊 <span id="sdUsed">...</span> | 📁 <span id="fileCount">...</span></span>
+                </div>
+            </div>
+            
+            <div id="fileList" class="file-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📁</div>
+                    <h2>読み込み中...</h2>
+                    <p>ファイル一覧を読み込んでいます</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="preview-area">
+                <div class="preview-title">プレビュー</div>
+                <div class="controls">
+                    <button id="previewBtn" class="preview-btn" title="ライブプレビューを開始します">📹 プレビュー開始</button>
+                    <button id="captureBtn" class="capture-btn" title="写真を撮影してSDカードに保存します">📸 撮影</button>
+                    <button id="infoBtn" class="info-btn" title="ハードウェア情報を表示します">ℹ️ 情報</button>
+                    <button id="rebootBtn" class="reboot-btn" title="ESP32-CAM を再起動">🔄 再起動</button>
+                </div>
+
+                <div class="preview-content">
+                    <div id="preview" class="preview-placeholder">
+                        📸 左の一覧から写真を選択してください
+                    </div>
+                </div>
+            </div>
+            <div class="status">
+                準備完了 • 左の一覧から写真を選ぶか、ライブプレビューを開始してください
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="/script.js"></script>
+</body>
+</html>

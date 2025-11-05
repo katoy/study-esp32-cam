@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Saved - ESP32-CAM</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-header">
+            <div class="success-icon">✅</div>
+            <h1>Photo Saved Successfully!</h1>
+        </div>
+        <div class="success-content">
+            <p>Your photo has been saved to SD card:</p>
+            <div class="filename">{{FILENAME}}</div>
+            <a href="/" class="btn btn-primary">📁 View All Files</a>
+            <a href="/" class="btn btn-secondary">🏠 Back to Home</a>
+            <p style="margin-top:30px;color:#8b949e;font-size:14px">Ready for next capture!</p>
+        </div>
+    </div>
+</body>
+</html>

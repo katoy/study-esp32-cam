@@ -1,0 +1,21 @@
+daemon:
+  port: "50051"
+build_cache:
+  compilations_before_purge: 10
+  ttl: 720h
+board_manager:
+  additional_urls: []
+library:
+  enable_unsafe_install: false
+logging:
+  level: "info"
+  format: "text"
+sketch:
+  always_export_binaries: false
+directories:
+  data: "/tmp/arduino-build-cache"
+  downloads: "/tmp/arduino-downloads"
+  user: "$HOME/.arduino15"
+network:
+  proxy: ""
+  extra_headers: {}

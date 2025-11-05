@@ -41,9 +41,6 @@ void handleFlashAPI();
 void handleFileUploadComplete();
 void handleFileUpload();
 void sendErrorResponse(const String& errorMessage);
-void sendJson(int status, const String& json);
-void sendJsonOk(const String& bodyJson);
-void sendJsonError(int status, const String& message);
 void disableFlashLED();
 void initFlashLED();
 void handleCapture();
@@ -58,9 +55,6 @@ void handleReboot();
 void connectWiFi();
 void initCamera();
 void initSDCard();
-String normalizePhotoPath(const String& name);
-void applyDefaultCameraTuning(sensor_t* s);
-void registerRoutes();
 
 // ==== エラーレスポンス送信のヘルパー関数 ====
 void sendErrorResponse(const String& errorMessage) {
@@ -75,24 +69,6 @@ void sendErrorResponse(const String& errorMessage) {
   Serial.println("📤 Error response sent");
 
   delay(50);  // レスポンス送信を確実にする
-}
-
-// ==== 共通JSON送信ヘルパー ====
-void sendJson(int status, const String& json) {
-  server.sendHeader("Connection", "close");
-  server.sendHeader("Access-Control-Allow-Origin", "*");
-  server.sendHeader("Cache-Control", "no-cache");
-  server.send(status, "application/json", json);
-}
-
-void sendJsonOk(const String& bodyJson) {
-  // bodyJson はすでに JSON オブジェクト/配列の文字列を想定
-  sendJson(200, bodyJson);
-}
-
-void sendJsonError(int status, const String& message) {
-  String json = String("{\"success\":false,\"error\":\"") + message + "\"}";
-  sendJson(status, json);
 }
 
 // ==== フラッシュLED制御 ====
@@ -183,34 +159,27 @@ void initCamera() {
   // フラッシュLED初期化（点滅防止）
   initFlashLED();
 
-  // デフォルトのカメラチューニングを適用
+  // 左右反転を修正（ミラーを有効化）
   sensor_t * s = esp_camera_sensor_get();
   if (s != nullptr) {
-    applyDefaultCameraTuning(s);
+    s->set_hmirror(s, 1);  // 1=enable (水平ミラー)
+    // s->set_vflip(s, 0); // 必要なら上下反転も調整
+
+    // デフォルト色調チューニング（やや鮮やかに）
+    // 有効な範囲: brightness/contrast/saturation は -2..2、special_effect 0:None
+    // センサーにより未対応の調整は内部で無視されます
+    s->set_whitebal(s, 1);      // 自動ホワイトバランスON
+    s->set_awb_gain(s, 1);      // AWBゲインON
+    s->set_saturation(s, 2);    // 彩度 +2（最大）
+    s->set_contrast(s, 1);      // コントラスト +1
+    s->set_brightness(s, 0);    // 明るさ 0（標準）
+    s->set_special_effect(s, 0);// エフェクトなし
+
+    Serial.println("📷 Orientation fixed: hmirror=1");
+    Serial.println("🎨 Color tune applied: saturation=+2, contrast=+1, AWB on");
   } else {
     Serial.println("⚠️ Could not get camera sensor to set orientation");
   }
-}
-
-// ==== デフォルトのカメラ色調・向きチューニング ====
-void applyDefaultCameraTuning(sensor_t* s) {
-  if (!s) return;
-  // 左右反転を修正（ミラーを有効化）
-  s->set_hmirror(s, 1);  // 1=enable (水平ミラー)
-  // s->set_vflip(s, 0); // 必要なら上下反転も調整
-
-  // デフォルト色調チューニング（やや鮮やかに）
-  // 有効な範囲: brightness/contrast/saturation は -2..2、special_effect 0:None
-  // センサーにより未対応の調整は内部で無視されます
-  s->set_whitebal(s, 1);      // 自動ホワイトバランスON
-  s->set_awb_gain(s, 1);      // AWBゲインON
-  s->set_saturation(s, 2);    // 彩度 +2（最大）
-  s->set_contrast(s, 1);      // コントラスト +1
-  s->set_brightness(s, 0);    // 明るさ 0（標準）
-  s->set_special_effect(s, 0);// エフェクトなし
-
-  Serial.println("📷 Orientation fixed: hmirror=1");
-  Serial.println("🎨 Color tune applied: saturation=+2, contrast=+1, AWB on");
 }
 
 // ==== SDカード初期化 ====
@@ -291,29 +260,34 @@ String readFileFromSD(const String& path) {
 }
 
 // ==== 静的ファイルハンドラ ====
-// 共通の静的テキスト配信
-void serveStaticText(const char* path, const char* mime) {
-  String content = readFileFromSD(path);
-  if (content.length() > 0) {
-    server.send(200, mime, content);
+void handleIndex() {
+  String html = readFileFromSD("/index.html");
+  if (html.length() > 0) {
+    server.send(200, "text/html; charset=utf-8", html);
   } else {
-    server.send(500, "text/plain", String("Failed to load ") + path);
+    server.send(500, "text/plain", "Failed to load index.html");
   }
 }
 
-void handleIndex() { serveStaticText("/index.html", "text/html; charset=utf-8"); }
-void handleCSS()   { serveStaticText("/style.css",  "text/css"); }
-void handleJS()    { serveStaticText("/script.js",  "text/javascript"); }
+void handleCSS() {
+  String css = readFileFromSD("/style.css");
+  if (css.length() > 0) {
+    server.send(200, "text/css", css);
+  } else {
+    server.send(500, "text/plain", "Failed to load style.css");
+  }
+}
+
+void handleJS() {
+  String js = readFileFromSD("/script.js");
+  if (js.length() > 0) {
+    server.send(200, "text/javascript", js);
+  } else {
+    server.send(500, "text/plain", "Failed to load script.js");
+  }
+}
 
 void handleFavicon() {
-  // Redirect .ico requests to .svg to ensure correct MIME and single source
-  String reqPath = server.uri();
-  if (reqPath.endsWith(".ico")) {
-    server.sendHeader("Location", "/favicon.svg?v=2");
-    server.send(302);
-    return;
-  }
-
   // ESP32-CAM camera icon SVG
   String faviconSVG = R"(<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="32" height="32" rx="4" fill="#212121"/>
@@ -478,14 +452,14 @@ void handleFlashAPI() {
                 ledcWrite(LEDC_CHANNEL_0, 0);
                 Serial.println("💡 Flash LED turned OFF");
             }
-      sendJsonOk("{\"success\":true}");
+            server.send(200, "application/json", "{\"success\":true}");
         } else {
-      sendJsonError(400, "Missing level parameter");
+            server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing level parameter\"}");
         }
     } else { // HTTP_GET
         // 現在の状態を返す（ここでは単純にON/OFFのみ）
         int status = digitalRead(FLASH_LED_PIN);
-    sendJsonOk("{\"status\":" + String(status) + "}");
+        server.send(200, "application/json", "{\"status\":" + String(status) + "}");
     }
 }
 
@@ -494,14 +468,14 @@ void handleCapture() {
   camera_fb_t * fb = NULL;
   fb = esp_camera_fb_get();
   if (!fb) {
-  sendErrorResponse("カメラの撮影に失敗しました");
+    sendErrorResponse("Camera capture failed");
     return;
   }
 
   String filename = generateTimestampFilename();
   File file = SD_MMC.open(filename, FILE_WRITE);
   if (!file) {
-  sendErrorResponse("ファイル書き込みに失敗しました");
+    sendErrorResponse("Failed to open file for writing");
     esp_camera_fb_return(fb);
     return;
   }
@@ -522,7 +496,7 @@ void handleCapture() {
 void handleCaptureAPI() {
   camera_fb_t * fb = esp_camera_fb_get();
   if (!fb) {
-  sendJsonError(500, "カメラの撮影に失敗しました");
+    server.send(500, "application/json", "{\"success\":false,\"error\":\"Camera capture failed\"}");
     return;
   }
 
@@ -530,7 +504,7 @@ void handleCaptureAPI() {
   File file = SD_MMC.open(filename, FILE_WRITE);
   if (!file) {
     esp_camera_fb_return(fb);
-  sendJsonError(500, "ファイル書き込みに失敗しました");
+    server.send(500, "application/json", "{\"success\":false,\"error\":\"Failed to open file for writing\"}");
     return;
   }
 
@@ -539,7 +513,7 @@ void handleCaptureAPI() {
   esp_camera_fb_return(fb);
 
   String json = String("{\"success\":true,\"filename\":\"") + filename + "\"}";
-  sendJsonOk(json);
+  server.send(200, "application/json", json);
 }
 
 // ==== ストリームハンドラ ====
@@ -586,14 +560,14 @@ void handleStream() {
 // ==== ストリーム停止API ====
 void handleStopStream() {
   g_stopStream = true;
-  sendJsonOk("{\"success\":true}");
+  server.send(200, "application/json", "{\"success\":true}");
 }
 
 // ==== ファイルリストハンドラ ====
 void handleFileList() {
   File root = SD_MMC.open("/photos");
   if(!root){
-  sendErrorResponse("写真ディレクトリを開けませんでした");
+    sendErrorResponse("Failed to open photos directory");
     return;
   }
 
@@ -617,20 +591,24 @@ void handleFileList() {
   }
   json += "]}";
 
-  sendJsonOk(json);
+  server.send(200, "application/json", json);
 }
 
 // ==== 写真取得API ====
 void handlePhoto() {
   if (!server.hasArg("name")) {
-    sendJsonError(400, "name パラメータがありません");
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing name parameter\"}");
     return;
   }
-  String name = normalizePhotoPath(server.arg("name"));
+  String name = server.arg("name");
+  if (!name.startsWith("/")) {
+    // 名前だけの場合は /photos 配下を前提にする
+    name = String("/photos/") + name;
+  }
 
   File file = SD_MMC.open(name, FILE_READ);
   if (!file) {
-    sendJsonError(404, "ファイルが見つかりません");
+    server.send(404, "application/json", "{\"success\":false,\"error\":\"File not found\"}");
     return;
   }
 
@@ -691,24 +669,33 @@ bool deletePath(const String& path) {
 
 void handleDelete() {
   if (!server.hasArg("name")) {
-    sendJsonError(400, "name パラメータがありません");
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing name parameter\"}");
     return;
   }
 
-  String name = normalizePhotoPath(server.arg("name"));
+  String name = server.arg("name");
+  // 正規化: 先頭スラッシュ付与
+  if (!name.startsWith("/")) {
+    name = "/" + name;
+  }
+  // UIからベース名のみが渡るケースに対応（/photos 配下を前提）
+  // 先頭の1つ目のスラッシュのみ、サブディレクトリを含まない場合は /photos/ を付与
+  if (!name.startsWith("/photos/") && name.lastIndexOf('/') == 0) {
+    name = String("/photos/") + name.substring(1);
+  }
 
   Serial.println("🗑️ Delete request for: " + name);
 
   if (!SD_MMC.exists(name)) {
-    sendJsonError(404, "パスが見つかりません");
+    server.send(404, "application/json", "{\"success\":false,\"error\":\"Path not found\"}");
     return;
   }
 
   bool ok = deletePath(name);
   if (ok) {
-    sendJsonOk(String("{\"success\":true,\"deleted\":\"") + name + "\"}");
+    server.send(200, "application/json", String("{\"success\":true,\"deleted\":\"") + name + "\"}");
   } else {
-    sendJsonError(500, String("削除に失敗しました: ") + name);
+    server.send(500, "application/json", String("{\"success\":false,\"error\":\"Failed to delete: ") + name + "\"}");
   }
 }
 
@@ -719,19 +706,6 @@ void handleReboot() {
   // 送信猶予を与えてから再起動
   delay(150);
   ESP.restart();
-}
-
-// ==== ユーティリティ: /photos パス正規化 ====
-String normalizePhotoPath(const String& original) {
-  String name = original;
-  if (!name.startsWith("/")) {
-    name = "/" + name;
-  }
-  // ベース名のみ（先頭のスラッシュのみでサブディレクトリなし）の場合は /photos を付与
-  if (!name.startsWith("/photos/") && name.lastIndexOf('/') == 0) {
-    name = String("/photos/") + name.substring(1);
-  }
-  return name;
 }
 
 
@@ -795,26 +769,11 @@ void setup() {
   initSDCard();
   printHardwareInfo();
   connectWiFi();
-  registerRoutes();
 
-  server.begin();
-  Serial.println("🚀 HTTP server started");
-}
-
-void loop() {
-  server.handleClient();
-}
-
-// ==== ルート登録 ====
-void registerRoutes() {
   server.on("/", HTTP_GET, handleIndex);
   server.on("/style.css", HTTP_GET, handleCSS);
   server.on("/script.js", HTTP_GET, handleJS);
-  // Favicon endpoints (SVG primary, ICO alternate)
-  server.on("/favicon.svg", HTTP_GET, handleFavicon);
   server.on("/favicon.ico", HTTP_GET, handleFavicon);
-
-  // /api 互換エンドポイント
   server.on("/api/flash", HTTP_GET, handleFlashAPI);
   server.on("/api/hardware", HTTP_GET, handleHardwareInfo);
   server.on("/api/stream", HTTP_GET, handleStream);
@@ -824,8 +783,7 @@ void registerRoutes() {
   server.on("/api/photo", HTTP_GET, handlePhoto);
   server.on("/api/delete", HTTP_DELETE, handleDelete);
   server.on("/api/capture", HTTP_POST, handleCaptureAPI);
-
-  // /app 推奨エンドポイント
+  // /app プレフィックス（推奨API）
   server.on("/app/flash", HTTP_GET, handleFlashAPI);
   server.on("/app/hardware", HTTP_GET, handleHardwareInfo);
   server.on("/app/stream", HTTP_GET, handleStream);
@@ -837,9 +795,16 @@ void registerRoutes() {
   server.on("/app/photo", HTTP_GET, handlePhoto);
   server.on("/app/delete", HTTP_DELETE, handleDelete);
   server.on("/app/capture", HTTP_POST, handleCaptureAPI);
-
-  // 旧互換
+  server.on("/capture", HTTP_GET, handleCapture);
+  server.on("/stream", HTTP_GET, handleStream);
+  server.on("/files", HTTP_GET, handleFileList);
   server.on("/upload", HTTP_POST, handleFileUploadComplete, handleFileUpload);
-
   server.onNotFound(handleIndex);
+
+  server.begin();
+  Serial.println("🚀 HTTP server started");
+}
+
+void loop() {
+  server.handleClient();
 }

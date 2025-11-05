@@ -13,7 +13,9 @@ except ImportError:
     exit(1)
 
 # --- 設定 ---
-SERIAL_PORT = "/dev/cu.usbserial-1130"
+# SERIAL_PORT = "/dev/cu.usbserial-1130"
+SERIAL_PORT="/dev/cu.usbserial-110"
+
 BAUD_RATE = 115200
 TIMEOUT = 20  # IPアドレス取得のタイムアウト（秒）
 WIFI_SSID = "TP-Link_C390"
