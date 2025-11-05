@@ -68,11 +68,11 @@
 
 以下は Web UI の画面例です。ESP32-CAM の IP アドレスにブラウザでアクセスし、ライブプレビューの開始/停止、撮影、ファイル一覧/削除、再起動などが行えます。
 
-![Web UI デモ](images/demo-001.png)
+![Web UI デモ](./images/demo-001.png)
 
 別画面例:
 
-![Web UI デモ 2](images/demo-002.png)
+![Web UI デモ 2](./images/demo-002.png)
 
 使い方の流れ（例）:
 
